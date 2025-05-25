@@ -38,9 +38,9 @@ pip install -r requirements.txt
 +-- requirements.txt        # Project dependencies
 +-- app/
     +-- db/                # Database related code
-    ¦   +-- database.py    # Database connection and session management
+    ï¿½   +-- database.py    # Database connection and session management
     +-- log/               # Logging functionality
-    ¦   +-- logException.py
+    ï¿½   +-- logException.py
     +-- model/             # Data models
         +-- errorLog.py
 ```
@@ -74,7 +74,10 @@ To run the development server:
 
 ```bash
 uvicorn main:app --reload
+
 ```
+
+Get-OdbcDriver -Name "SQL Server*" 
 
 ## Contributing
 
