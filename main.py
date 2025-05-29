@@ -5,12 +5,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 import logging
+from fastapi.openapi.utils import get_openapi
 
 from app.log.logException import log_error_to_db
 from app.db.database import get_db
+from app.middleware.JWTBearer import JWTBearer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+auth_handler = JWTBearer()
 
 app = FastAPI(
     title="School ERP API",
@@ -21,6 +25,39 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# Configure Swagger UI authentication
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title="Your API Title",
+        version="1.0.0",
+        description="Your API Description",
+        routes=app.routes,
+    )
+
+    # Add security scheme to OpenAPI schema
+    openapi_schema["components"]["securitySchemes"] = {
+        "Bearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+        }
+    }
+
+    # Add global security requirement
+    openapi_schema["security"] = [
+        {
+            "Bearer": []
+        }
+    ]
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +67,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+@app.get("/protected")
+async def protected_route(payload: dict = Depends(auth_handler)):
+    return {"message": "You have access!", "user_data": payload}
 
 @app.get("/")
 def read_root():
