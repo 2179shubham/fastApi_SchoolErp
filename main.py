@@ -4,10 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 import logging
-from fastapi.openapi.utils import get_openapi
 
-from app.log.logException import log_error_to_db
+from app.api.api import api_router
+
+from fastapi.openapi.utils import get_openapi
 from app.db.database import get_db
 from app.middleware.JWTBearer import JWTBearer
 
@@ -58,6 +60,9 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
+# Include routers here
+app.include_router(api_router, prefix="/api/v1")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -72,43 +77,33 @@ async def protected_route(payload: dict = Depends(auth_handler)):
     return {"message": "You have access!", "user_data": payload}
 
 @app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-@app.get("/health/database", tags=["Health Check"])
-async def check_db_connection(db: Session = Depends(get_db)):
-    """
-    Check if the database connection is working.
-    Returns:
-        dict: A dictionary containing the status of the database connection
-    """
-    try:
-        # Try to execute a simple query
-        db.execute(text("SELECT 1"))
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "message": "Database connection is working properly"
+def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - Swagger UI",
+        oauth2_redirect_url= app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@latest/swagger-ui-bundle.js",
+        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@latest/swagger-ui.css",
+        swagger_ui_parameters= {
+            "persistAuthorization": True,
+            "displayRequestDuration": True,
+            "docExpansion": "list",  # Collapse all sections by default
         }
-    except SQLAlchemyError as e:
-        logger.error(f"Database connection failed: {str(e)}")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "unhealthy",
-                "database": "disconnected",
-                "message": "Database connection failed",
-                "error": str(e)
-            }
         )
+
+
+@app.get("/redoc")
+def custom_redoc_html():
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=app.title + " - ReDoc",
+        redoc_js_url= "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
+    ) 
+
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Union[str, None] = None):
     return {"item_id": item_id, "q": q}
-
-@app.get("/about")
-def health_check():
-    return {"about_check": "returned successfully"}
 
 @app.get("/callMenu/{menu_id}")
 def call_menu(menu_id: int, db: Session = Depends(get_db)):
