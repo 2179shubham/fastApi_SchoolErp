@@ -89,7 +89,7 @@ def custom_swagger_ui_html():
             "displayRequestDuration": True,
             "docExpansion": "list",  # Collapse all sections by default
         }
-        )
+    )
 
 
 @app.get("/redoc")
